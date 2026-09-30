@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -100,6 +101,12 @@ public class SubscriptionService implements CSourceHandler, BaseRequestHandler {
 
 	@Inject
 	JsonLDService ldService;
+
+	@Inject
+	PriorityNotificationDispatcher notificationDispatcher;
+
+	@Inject
+	ServiceClassMapper serviceClassMapper;
 
 	// @Inject
 	// @Channel(AppConstants.INTERNAL_SUBS_CHANNEL)
@@ -818,7 +825,20 @@ public class SubscriptionService implements CSourceHandler, BaseRequestHandler {
 		logger.debug("checking subscriptions");
 		// logger.debug(message.toString());
 
-		for (SubscriptionRequest potentialSub : potentialSubs) {
+		// Orden por CLASE de servicio, no por priority fina -- coherente con
+		// PriorityNotificationDispatcher, que tampoco distingue dentro de una
+		// clase. Un stream ordenado en Java es estable, así que dos
+		// suscripciones de la misma clase conservan su orden relativo original
+		// (FIFO dentro de clase, igual que bajo saturación en el dispatcher).
+		List<SubscriptionRequest> orderedSubs = potentialSubs.stream()
+				.sorted(Comparator.comparingInt((SubscriptionRequest s) -> {
+					Integer prio = s.getSubscription().getPriority();
+					int priority = prio != null ? prio : NGSIConstants.NGSI_LD_SUBSCRIPTION_DEFAULT_PRIORITY;
+					return serviceClassMapper.classOf(priority);
+				}).reversed())
+				.collect(Collectors.toList());
+
+		for (SubscriptionRequest potentialSub : orderedSubs) {
 			logger.debug("Potential Sub");
 			logger.debug(potentialSub.toString());
 			List<Map<String, Object>> dataToSend = Lists.newArrayList();
@@ -905,7 +925,7 @@ public class SubscriptionService implements CSourceHandler, BaseRequestHandler {
 										}
 									}
 									tbs.addAll(toAddLater);
-									return sendNotification(potentialSub, tbs);
+									return dispatchNotification(potentialSub, tbs);
 								}));
 
 			} else {
@@ -987,7 +1007,7 @@ public class SubscriptionService implements CSourceHandler, BaseRequestHandler {
 					it.remove();
 				}
 			}
-			unis.add(sendNotification(potentialSub, dataToSend));
+			unis.add(dispatchNotification(potentialSub, dataToSend));
 		}
 		if (unis.isEmpty()) {
 			return Uni.createFrom().voidItem();
@@ -1234,6 +1254,27 @@ public class SubscriptionService implements CSourceHandler, BaseRequestHandler {
 			oldEntry.put(NGSIConstants.PREVIOUS_VOCAB, oldEntry.remove(NGSIConstants.NGSI_LD_HAS_VOCAB));
 		}
 
+	}
+
+	private Uni<Void> dispatchNotification(SubscriptionRequest potentialSub, List<Map<String, Object>> dataToSend) {
+		if (dataToSend == null || dataToSend.isEmpty()) {
+			return Uni.createFrom().voidItem();
+		}
+		Integer prio = potentialSub.getSubscription().getPriority();
+		int priority = prio != null ? prio : NGSIConstants.NGSI_LD_SUBSCRIPTION_DEFAULT_PRIORITY;
+		return notificationDispatcher.submit(priority, () -> sendNotification(potentialSub, dataToSend),
+				() -> recordDroppedNotification(potentialSub));
+	}
+
+	private Uni<Void> recordDroppedNotification(SubscriptionRequest potentialSub) {
+		logger.warn("Dropping notification for subscription " + potentialSub.getId()
+				+ " due to sustained dispatch saturation");
+		long now = System.currentTimeMillis();
+		potentialSub.getSubscription().getNotification().setLastFailedNotification(now);
+		potentialSub.getSubscription().getNotification().setLastNotification(now);
+		return subDAO.updateNotificationFailure(potentialSub.getTenant(), potentialSub.getId(),
+				SerializationTools.notifiedAt_formatter
+						.format(LocalDateTime.ofInstant(Instant.ofEpochMilli(now), ZoneId.of("Z"))));
 	}
 
 	private Uni<Void> sendNotification(SubscriptionRequest potentialSub, List<Map<String, Object>> dataToSend) {
@@ -1512,7 +1553,7 @@ public class SubscriptionService implements CSourceHandler, BaseRequestHandler {
 								}
 								try {
 									logger.debug("sending interval notification");
-									return sendNotification(request, queryResult);
+									return dispatchNotification(request, queryResult);
 								} catch (Exception e) {
 									logger.error("Failed to send interval notifcation", e);
 									return Uni.createFrom().voidItem();

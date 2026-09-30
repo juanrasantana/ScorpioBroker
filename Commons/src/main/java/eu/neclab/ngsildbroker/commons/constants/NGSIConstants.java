@@ -108,6 +108,15 @@ public interface NGSIConstants {
 	public final static String NGSI_LD_NAME = "https://uri.etsi.org/ngsi-ld/name";
 	public final static String NGSI_LD_THROTTLING = "https://uri.etsi.org/ngsi-ld/throttling";
 	public final static String NGSI_LD_TIME_INTERVAL = "https://uri.etsi.org/ngsi-ld/timeInterval";
+	public final static String NGSI_LD_PRIORITY = "https://uri.etsi.org/ngsi-ld/priority";
+	// Espacio de codepoints: un octeto (0-255), como el campo priority de AMQP
+	// y, conceptualmente, DSCP (espacio amplio, pocas clases de servicio en el
+	// dispatcher -- ver ServiceClassMapper). Sin marcar explícitamente =
+	// best-effort, igual que el PHB por defecto de DiffServ: 0 es el extremo
+	// menos prioritario del rango, no un valor intermedio.
+	public final static int NGSI_LD_PRIORITY_MIN = 0;
+	public final static int NGSI_LD_PRIORITY_MAX = 255;
+	public final static Integer NGSI_LD_SUBSCRIPTION_DEFAULT_PRIORITY = 0;
 	public final static String NGSI_LD_EXPIRES = "https://uri.etsi.org/ngsi-ld/expiresAt";
 	public final static String NGSI_LD_STATUS = "https://uri.etsi.org/ngsi-ld/status";
 	public final static String NGSI_LD_DESCRIPTION = "http://purl.org/dc/terms/description";
@@ -195,14 +204,14 @@ public interface NGSIConstants {
 			NGSI_LD_DESCRIPTION, NGSI_LD_GEO_REL, NGSI_LD_TIME_STAMP, NGSI_LD_TIMESTAMP_START, NGSI_LD_TIMESTAMP_END,
 			NGSI_LD_SUBSCRIPTION_ID, NGSI_LD_NOTIFIED_AT, NGSI_LD_DATA, NGSI_LD_INTERNAL, NGSI_LD_LAST_NOTIFICATION,
 			NGSI_LD_LAST_FAILURE, NGSI_LD_LAST_SUCCESS, NGSI_LD_TIMES_SENT, NGSI_LD_UNIT_CODE, NGSI_LD_DATA_SET_ID,
-			NGSI_LD_MANAGEMENTINTERVAL, NGSI_LD_HAS_VOCAB, NGSI_LD_HAS_LIST, NGSI_LD_HAS_JSON };
+			NGSI_LD_MANAGEMENTINTERVAL, NGSI_LD_HAS_VOCAB, NGSI_LD_HAS_LIST, NGSI_LD_HAS_JSON, NGSI_LD_PRIORITY };
 
 	public final static String[] NGSI_LD_SUBSCRIPTON_PAYLOAD_KEYS = { JSON_LD_ID, JSON_LD_TYPE, JSON_LD_CONTEXT,
 			NGSI_LD_ENTITIES, NGSI_LD_ID_PATTERN, NGSI_LD_GEO_QUERY, NGSI_LD_NOTIFICATION, NGSI_LD_ATTRIBUTES,
 			NGSI_LD_ENDPOINT, NGSI_LD_ACCEPT, NGSI_LD_URI, NGSI_LD_FORMAT, NGSI_LD_QUERY, NGSI_LD_WATCHED_ATTRIBUTES,
 			NGSI_LD_TIMES_SENT, NGSI_LD_THROTTLING, NGSI_LD_TIME_INTERVAL, NGSI_LD_EXPIRES, NGSI_LD_STATUS,
 			NGSI_LD_DESCRIPTION, NGSI_LD_IS_ACTIVE, NGSI_LD_TIMESTAMP_END, NGSI_LD_TIMESTAMP_START,
-			NGSI_LD_SUBSCRIPTION_NAME, NGSI_LD_HAS_VOCAB, NGSI_LD_HAS_LIST, NGSI_LD_HAS_JSON };
+			NGSI_LD_SUBSCRIPTION_NAME, NGSI_LD_HAS_VOCAB, NGSI_LD_HAS_LIST, NGSI_LD_HAS_JSON, NGSI_LD_PRIORITY };
 
 	public final static String GEO_JSON_COORDINATES = "coordinates";
 	public final static String GEO_JSON_TYPE = "type";

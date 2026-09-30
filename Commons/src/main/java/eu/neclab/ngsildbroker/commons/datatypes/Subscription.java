@@ -61,6 +61,7 @@ public class Subscription implements Serializable {
 	private String status = "active";
 	private Integer throttling = 0;
 	private Integer timeInterval = 0;
+	private Integer priority;
 	private String type;
 	private String jsonldContext;
 	private List<URI> requestorList;
@@ -109,6 +110,7 @@ public class Subscription implements Serializable {
 		this.status = subscription.status;
 		this.throttling = subscription.throttling.intValue();
 		this.timeInterval = subscription.timeInterval.intValue();
+		this.priority = subscription.priority;
 		this.type = subscription.type;
 		if (requestorList != null) {
 			this.requestorList = new ArrayList<URI>(subscription.requestorList);
@@ -285,6 +287,15 @@ public class Subscription implements Serializable {
 						throw new ResponseException(ErrorType.BadRequestData, "Failed to parse timeinterval");
 					}
 					break;
+				case NGSIConstants.NGSI_LD_PRIORITY:
+					try {
+						subscription.setPriority(
+								(Integer) ((List<Map<String, Object>>) mapValue).get(0)
+										.get(NGSIConstants.JSON_LD_VALUE));
+					} catch (Exception e) {
+						throw new ResponseException(ErrorType.BadRequestData, "Failed to parse priority");
+					}
+					break;
 				case NGSIConstants.NGSI_LD_EXPIRES:
 					try {
 						subscription.setExpiresAt(SerializationTools.date2Long(
@@ -371,6 +382,16 @@ public class Subscription implements Serializable {
 				|| (notifi.getPick() != null && notifi.getAttrs() != null)
 				|| (notifi.getAttrs() != null && notifi.getOmit() != null)) {
 			throw new ResponseException(ErrorType.BadRequestData, "Omit, pick and attrs are mutually exclusive");
+		}
+		if (subscription.getPriority() == null) {
+			if (!update) {
+				subscription.setPriority(NGSIConstants.NGSI_LD_SUBSCRIPTION_DEFAULT_PRIORITY);
+			}
+		} else if (subscription.getPriority() < NGSIConstants.NGSI_LD_PRIORITY_MIN
+				|| subscription.getPriority() > NGSIConstants.NGSI_LD_PRIORITY_MAX) {
+			throw new ResponseException(ErrorType.BadRequestData,
+					"priority must be an integer between " + NGSIConstants.NGSI_LD_PRIORITY_MIN + " and "
+							+ NGSIConstants.NGSI_LD_PRIORITY_MAX + " (got " + subscription.getPriority() + ")");
 		}
 		if (subscription.getThrottling() > 0 && subscription.getTimeInterval() > 0) {
 			throw new ResponseException(ErrorType.BadRequestData, "throttling  and timeInterval cannot both be set");
@@ -681,6 +702,9 @@ public class Subscription implements Serializable {
 		if (subscription.timeInterval != null) {
 			this.timeInterval = subscription.timeInterval;
 		}
+		if (subscription.priority != null) {
+			this.priority = subscription.priority;
+		}
 		if (subscription.type != null) {
 			this.type = subscription.type;
 		}
@@ -835,6 +859,14 @@ public class Subscription implements Serializable {
 		this.timeInterval = timeInterval;
 	}
 
+	public Integer getPriority() {
+		return priority;
+	}
+
+	public void setPriority(Integer priority) {
+		this.priority = priority;
+	}
+
 	public String getType() {
 		return type;
 	}
@@ -955,7 +987,8 @@ public class Subscription implements Serializable {
 	public String toString() {
 		return "Subscription [description=" + description + ", expiresAt=" + expiresAt + ", id=" + id
 				+ ", subscriptionName=" + subscriptionName + ", notification=" + notification + ", status=" + status
-				+ ", throttling=" + throttling + ", timeInterval=" + timeInterval + ", type=" + type
+				+ ", throttling=" + throttling + ", timeInterval=" + timeInterval + ", priority=" + priority
+				+ ", type=" + type
 				+ ", requestorList=" + requestorList + ", isActive=" + isActive + ", attributeNames=" + attributeNames
 				+ ", entities=" + entities + ", ldQueryString=" + ldQueryString + ", scopeQueryString="
 				+ scopeQueryString + ", csfQueryString=" + csfQueryString + ", ldGeoQuery=" + ldGeoQuery
